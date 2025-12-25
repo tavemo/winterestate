@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+public/.DS_Store
+public/easter/.DS_Store
+
+# Vercel
+.vercel/
+
+# Big media (don’t commit huge videos to GitHub)
+*.mov
+*.mp4
+

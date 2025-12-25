@@ -274,6 +274,7 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
   const [hackPulse, setHackPulse] = useState(0);
   const [hackShow, setHackShow] = useState(false);
   const [hackReady, setHackReady] = useState(false);
+  const hackQueuedRef = useRef(false);
   const [emptyShow, setEmptyShow] = useState(false);
   const [webglLost, setWebglLost] = useState(false);
   const [winkShow, setWinkShow] = useState(false);
@@ -309,11 +310,29 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
 
   const continueAfterHack = () => {
     if (!hackShow) return;
-    if (!hackReady) return;
+    if (!hackReady) {
+      // Mobile users often tap before the CTA turns on. Queue the intent so they don't need a second tap.
+      hackQueuedRef.current = true;
+      return;
+    }
     setHackShow(false);
     setHackReady(false);
     window.setTimeout(() => onOpened(), reduceMotion ? 220 : 820);
   };
+
+  useEffect(() => {
+    if (!hackShow) {
+      hackQueuedRef.current = false;
+      return;
+    }
+    // If the user already tapped while the hack was “warming up”, auto-continue once it's ready.
+    if (hackReady && hackQueuedRef.current) {
+      hackQueuedRef.current = false;
+      // next tick so state settles (prevents any edge-case re-entrancy)
+      window.setTimeout(() => continueAfterHack(), 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hackShow, hackReady]);
 
   const openT = opened ? 1 : 0;
   const dpr = useMemo(() => {
@@ -408,6 +427,7 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
                   setHackPulse((x) => x + 1);
                   setHackShow(true);
                   setHackReady(false);
+                  hackQueuedRef.current = false;
                   onHackBeat?.();
                   if (hackReadyTimerRef.current) window.clearTimeout(hackReadyTimerRef.current);
                   hackReadyTimerRef.current = window.setTimeout(() => setHackReady(true), reduceMotion ? 80 : 980);

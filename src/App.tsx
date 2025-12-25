@@ -359,6 +359,7 @@ export default function App() {
   const copiedTimerRef = useRef<number | null>(null);
   const rewardTimerRef = useRef<number | null>(null);
   const [hijacked, setHijacked] = useState(false);
+  const pendingBedRef = useRef<null | ("xmas" | "post" | "metal" | "rockxmas" | "acdc" | "slappa")>(null);
   const musicRef = useRef<{
     a: HTMLAudioElement;
     b: HTMLAudioElement;
@@ -402,6 +403,16 @@ export default function App() {
     }
     musicRef.current = { a, b, active: "a", track: null, target: 0.85, primed: null, switchToken: 0, duckToken: 0 };
     return musicRef.current;
+  };
+
+  const bedForTerminalIdx = (idx: number) => {
+    // idx is 0-based. We keep the experience deterministic:
+    // - After hijack: default to post bed
+    // - Special room tracks: 04 -> rockxmas, 05 -> acdc, 06 -> slappa
+    if (idx === 3) return "rockxmas" as const;
+    if (idx === 4) return "acdc" as const;
+    if (idx === 5) return "slappa" as const;
+    return hijacked ? ("post" as const) : ("xmas" as const);
   };
 
   const ensureAssetSfx = () => {
@@ -1123,12 +1134,17 @@ export default function App() {
                       if (stage !== "terminal") return;
                       document.body.dataset.termRoom = qid;
                       document.body.dataset.termRoomIdx = String(idx + 1);
+                      if (state.settings.sound) {
+                        // Enforce correct track for this room (and cut any previous bed).
+                        void musicPlay(bedForTerminalIdx(idx), true);
+                      }
                     }}
                     onCopy={() => sfx.tick()}
                     onTap={() => sfx.lootTap(Math.min(1, terminalDrama))}
                     onSlappa={(on) => {
                       if (!state.settings.sound) return;
-                      void musicPlay(on ? "xmas" : "post", true);
+                      // Slappa overlay: lean into the gag track, then return to the normal post-hijack bed.
+                      void musicPlay(on ? "slappa" : "post", true);
                     }}
                     onRiddleOk={(idx, qid) => {
                       // Special stingers
@@ -1153,16 +1169,18 @@ export default function App() {
 
                       // Decide the next bed for the upcoming room index.
                       // idx is 0-based current room; next room is idx+1.
-                      const nextIdx = idx + 1;
-                      const nextTrack = nextIdx === 3 ? "rockxmas" : nextIdx === 4 ? "acdc" : nextIdx === 5 ? "slappa" : hijacked ? "post" : "xmas";
+                      const nextTrack = bedForTerminalIdx(idx + 1);
+                      pendingBedRef.current = nextTrack;
                       void musicPrime(nextTrack);
                     }}
-                    onRoomWinEnd={() => {
+                    onRoomWinEnd={(idx) => {
                       // If the user taps through early (or timer ends), stop victory immediately and resume the primed bed.
                       if (!state.settings.sound) return;
                       if (roomWinAudioTimerRef.current) window.clearTimeout(roomWinAudioTimerRef.current);
                       victoryStop();
-                      musicRaiseToTarget();
+                      const next = pendingBedRef.current ?? bedForTerminalIdx(idx + 1);
+                      pendingBedRef.current = null;
+                      void musicPlay(next, true);
                     }}
                     onWrong={() => {
                       musicDuck(1100, 0.06);

@@ -2638,7 +2638,7 @@ body[data-stage="present"] .scene {
   border-radius: 22px;
   pointer-events: none;
   opacity: 0;
-  z-index: 3;
+  z-index: 6; /* must sit above EMPTY overlay */
 }
 
 .hackOverlay--on {
@@ -2667,7 +2667,7 @@ body[data-stage="present"] .scene {
   padding: 12px 12px;
   border-radius: 16px;
   border: 1px solid rgba(103, 211, 255, 0.18);
-  background: rgba(4, 12, 18, 0.58);
+  background: rgba(4, 12, 18, 0.74);
   backdrop-filter: blur(8px);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
   overflow: hidden;
@@ -2698,6 +2698,24 @@ body[data-stage="present"] .scene {
   opacity: 0.55;
   mix-blend-mode: normal;
   animation: none;
+  z-index: 2;
+}
+
+@media (max-width: 420px) {
+  .hackOverlay__lines {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    padding: 12px 10px;
+  }
+  .hackLine {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+  }
+  .hackCta {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+  }
 }
 
 .emptyOverlay--persist .emptyOverlay__panel {

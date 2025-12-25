@@ -278,6 +278,7 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
   const [webglLost, setWebglLost] = useState(false);
   const [winkShow, setWinkShow] = useState(false);
   const winkSeenRef = useRef(false);
+  const finalLatchRef = useRef(false);
   const winkTimerRef = useRef<number | null>(null);
   const hackReadyTimerRef = useRef<number | null>(null);
   const emptyTimerRef = useRef<number | null>(null);
@@ -297,6 +298,7 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
     } catch {
       // ignore
     }
+    finalLatchRef.current = false;
     return () => {
       if (winkTimerRef.current) window.clearTimeout(winkTimerRef.current);
       if (hackReadyTimerRef.current) window.clearTimeout(hackReadyTimerRef.current);
@@ -372,6 +374,9 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
               continueAfterHack();
               return;
             }
+            // Mobile can fire rapid “double taps” before React state updates;
+            // latch the final-open sequence so timers + audio don't schedule twice.
+            if (finalLatchRef.current) return;
             onClick?.();
             setImpulseAt(performance.now());
             setTapSeed((s) => s + 1);
@@ -385,6 +390,7 @@ export default function PresentBox({ reduceMotion, onOpened, onEmptyBeat, onClic
                 setShakePulse((x) => x + 1);
               }
               if (next >= required) {
+                finalLatchRef.current = true;
                 // Pop it open NOW (epic), then hit a suspenseful “empty” beat,
                 // then hijack shortly after.
                 setOpened(true);

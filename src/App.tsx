@@ -1165,10 +1165,9 @@ export default function App() {
                       // - Prime the NEXT room's bed during this user gesture so iOS allows it
                       // - When the green overlay ends, fade back up to the bed (no overlap)
                       if (!state.settings.sound) return;
-                      const hold = state.settings.reduceMotion ? 1 : 3400;
-
-                      // Stop bed audibly (keep it paused/quiet).
-                      musicSetExclusiveVolume(0);
+                      // Hard cancel any in-flight ducks/fades and stop the bed completely.
+                      // (Otherwise a pending duck restore can bring the bed back under victory.)
+                      musicStop();
 
                       // Ensure victory plays now (this callback is inside the submit click/Enter gesture).
                       void victoryPlay();

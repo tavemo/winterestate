@@ -2288,7 +2288,7 @@ body.reduce-motion .envelopeScene--idle .bpStroke {
   z-index: 2;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 18px 18px 98px;
+  padding: 18px 18px 120px;
 }
 
 .cornerMark {
@@ -2313,8 +2313,7 @@ body.reduce-motion .envelopeScene--idle .bpStroke {
 }
 
 body[data-stage="terminal"] .cornerMark,
-body[data-stage="reward"] .cornerMark,
-body[data-stage="final"] .cornerMark {
+body[data-stage="reward"] .cornerMark {
   opacity: 0.18;
   font-size: 10px;
 }
@@ -3839,8 +3838,34 @@ body.reduce-motion .slappaOverlay__wash {
   color: rgba(216, 246, 255, 0.72);
 }
 
-.rewardScene__btn {
+.rewardScene__actions {
   margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .terminalRiddle {
+    padding: 14px;
+  }
+  .terminalPrompt {
+    padding: 14px;
+  }
+  .terminalPrompt__text {
+    font-size: 20px;
+    line-height: 1.38;
+  }
+  .rewardScene {
+    padding: 26px;
+  }
+  .rewardScene__sub {
+    font-size: 14px;
+  }
+  .rewardValue {
+    font-size: 17px;
+  }
 }
 
 .rewardSteam {

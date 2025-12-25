@@ -77,6 +77,10 @@ function loadState(): AppState {
   const merged = deepMerge(structuredClone(DEFAULT_STATE), parsed) as AppState;
   // Back-compat: we removed the old final screen; land on reward instead.
   if ((merged as unknown as { stage?: string }).stage === "final") merged.stage = "reward";
+  // Hardening: if storage gets corrupted, fall back safely.
+  if (!["note", "present", "terminal", "reward"].includes((merged as unknown as { stage?: string }).stage ?? "")) {
+    merged.stage = "note";
+  }
   // Always resume where they left off (iOS can reload tabs unpredictably).
   return merged;
 }

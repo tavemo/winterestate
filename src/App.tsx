@@ -389,6 +389,20 @@ export default function App() {
     >;
   } | null>(null);
 
+  const trackSrc = (track: "xmas" | "post" | "metal" | "rockxmas" | "acdc" | "slappa") => {
+    return track === "xmas"
+      ? MUSIC_XMAS
+      : track === "metal"
+        ? MUSIC_EMPTY
+        : track === "rockxmas"
+          ? MUSIC_ROCK_XMAS
+          : track === "acdc"
+            ? MUSIC_ACDC
+            : track === "slappa"
+              ? MUSIC_SLAPPA
+              : MUSIC_POST_HIJACK;
+  };
+
   const ensureMusic = () => {
     if (musicRef.current) return musicRef.current;
     const a = new Audio();
@@ -574,24 +588,22 @@ export default function App() {
 
   const musicPrime = async (track: "xmas" | "post" | "metal" | "rockxmas" | "acdc" | "slappa") => {
     if (!state.settings.sound) return;
-    const src =
-      track === "xmas"
-        ? MUSIC_XMAS
-        : track === "metal"
-          ? MUSIC_EMPTY
-          : track === "rockxmas"
-            ? MUSIC_ROCK_XMAS
-            : track === "acdc"
-              ? MUSIC_ACDC
-              : track === "slappa"
-                ? MUSIC_SLAPPA
-                : MUSIC_POST_HIJACK;
+    const src = trackSrc(track);
     const m = ensureMusic();
     m.target = trackTargetVol(track);
-    const nextKey: "a" | "b" = m.active === "a" ? "b" : "a";
+    const curKey: "a" | "b" = m.active;
+    const nextKey: "a" | "b" = curKey === "a" ? "b" : "a";
+    const cur = m[curKey];
     const next = m[nextKey];
     const token = ++m.switchToken;
     try {
+      // Stop the current bed before starting the next (no overlap).
+      try {
+        cur.pause();
+        cur.volume = 0;
+      } catch {
+        // ignore
+      }
       if (next.src !== src) next.src = src;
       next.loop = true;
       next.preload = "auto";
@@ -599,8 +611,10 @@ export default function App() {
       next.currentTime = 0;
       await next.play();
       if (m.switchToken !== token) return;
-      // Prime silently (do NOT flip active yet; avoids “two beds” bugs).
-      m.primed = { key: nextKey, src };
+      // Prime silently (but now it's the only bed "running").
+      m.active = nextKey;
+      m.track = src;
+      m.primed = null;
     } catch {
       // If play is blocked, just keep current bed; the game still works.
     }
@@ -608,18 +622,7 @@ export default function App() {
 
   const musicPlay = async (track: "xmas" | "post" | "metal" | "rockxmas" | "acdc" | "slappa", hardCut = false) => {
     if (!state.settings.sound) return;
-    const src =
-      track === "xmas"
-        ? MUSIC_XMAS
-        : track === "metal"
-          ? MUSIC_EMPTY
-          : track === "rockxmas"
-            ? MUSIC_ROCK_XMAS
-            : track === "acdc"
-              ? MUSIC_ACDC
-              : track === "slappa"
-                ? MUSIC_SLAPPA
-            : MUSIC_POST_HIJACK;
+    const src = trackSrc(track);
     const m = ensureMusic();
     if (m.track === src && m[m.active].src === src) {
       // Ensure exclusivity and correct level.
@@ -633,8 +636,7 @@ export default function App() {
     const token = ++m.switchToken;
     m.duckToken += 1;
 
-    const primed = m.primed?.src === src ? m.primed : null;
-    const nextKey: "a" | "b" = primed ? primed.key : m.active === "a" ? "b" : "a";
+    const nextKey: "a" | "b" = m.active === "a" ? "b" : "a";
     const curKey = m.active;
     const cur = m[curKey];
     const next = m[nextKey];
@@ -642,6 +644,13 @@ export default function App() {
     m.primed = null;
 
     try {
+      // Stop current before starting next (strictly no overlap).
+      try {
+        cur.pause();
+        cur.volume = 0;
+      } catch {
+        // ignore
+      }
       if (next.src !== src) next.src = src;
       next.currentTime = 0;
       next.volume = 0;
@@ -652,20 +661,17 @@ export default function App() {
     }
     if (m.switchToken !== token) return;
 
-    const dur = hardCut ? 220 : 650;
+    const dur = hardCut ? 120 : 380;
     const t0 = performance.now();
-    const startCur = cur.volume;
     const raf = () => {
       if (m.switchToken !== token) return;
       const t = Math.min(1, (performance.now() - t0) / dur);
       const ease = 1 - Math.pow(1 - t, 3);
       next.volume = m.target * ease;
-      cur.volume = startCur * (1 - ease);
       if (t < 1) {
         requestAnimationFrame(raf);
       } else {
         // End state: enforce strict “one audible bed” rule.
-        cur.volume = 0;
         m.a.volume = nextKey === "a" ? next.volume : 0;
         m.b.volume = nextKey === "b" ? next.volume : 0;
         m.active = nextKey;
@@ -1180,7 +1186,13 @@ export default function App() {
                       victoryStop();
                       const next = pendingBedRef.current ?? bedForTerminalIdx(idx + 1);
                       pendingBedRef.current = null;
-                      void musicPlay(next, true);
+                      // Prefer raising a primed bed (no new play call required).
+                      const m = musicRef.current;
+                      if (m && m.track === trackSrc(next) && m[m.active].src === trackSrc(next)) {
+                        musicRaiseToTarget();
+                      } else {
+                        void musicPlay(next, true);
+                      }
                     }}
                     onWrong={() => {
                       musicDuck(1100, 0.06);

@@ -33,6 +33,7 @@ body {
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -49,6 +50,7 @@ body {
   font-family: var(--mono);
   overflow-x: hidden;
   overscroll-behavior: none;
+  width: 100%;
 }
 
 .srOnly {
@@ -1153,6 +1155,7 @@ body.high-contrast {
     rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(10px);
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1173,6 +1176,7 @@ body.high-contrast {
   position: relative;
   display: grid;
   gap: 14px;
+  overflow-x: hidden;
 }
 
 .envelopeScene {
@@ -1414,12 +1418,13 @@ body.reduce-motion .envelopeScene--idle .blueprintSvg {
 
 .introBackdrop {
   position: absolute;
-  inset: -30px -30px -10px -30px;
+  inset: 0;
   border-radius: 28px;
   overflow: hidden;
   opacity: 0.9;
   pointer-events: none;
   filter: saturate(1.05) contrast(1.05);
+  transform: scale(1.06);
 }
 
 .blueprintSvg {

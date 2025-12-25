@@ -659,7 +659,7 @@ export default function TerminalReveal({
     setTries((t) => ({ ...t, [q.id]: (t[q.id] ?? 0) + 1 }));
     onWrong?.();
     if (errorTimerRef.current) window.clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = window.setTimeout(() => setShowError(false), reduceMotion ? 1 : 900);
+    errorTimerRef.current = window.setTimeout(() => setShowError(false), reduceMotion ? 1 : 4000);
   }
 
   function triggerOk() {

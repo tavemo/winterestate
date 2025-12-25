@@ -3615,7 +3615,7 @@ body.reduce-motion .slappaOverlay__wash {
 
 .rageWash--on {
   opacity: 1;
-  animation: rageFlash 980ms ease-out forwards;
+  animation: rageFlash 4000ms ease-out forwards;
 }
 
 @keyframes rageFlash {
@@ -3624,11 +3624,11 @@ body.reduce-motion .slappaOverlay__wash {
     transform: translateY(8px);
     filter: saturate(1.6) contrast(1.2) brightness(1.05);
   }
-  12% {
+  10% {
     opacity: 1;
     transform: translateY(0px);
   }
-  55% {
+  82% {
     opacity: 0.85;
   }
   100% {

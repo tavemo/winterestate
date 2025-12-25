@@ -365,6 +365,9 @@ export default function App() {
     active: "a" | "b";
     track: string | null;
     target: number;
+    primed: { key: "a" | "b"; src: string } | null;
+    switchToken: number;
+    duckToken: number;
   } | null>(null);
   const endRef = useRef<HTMLAudioElement | null>(null);
   const endPlayedRef = useRef(false);
@@ -397,7 +400,7 @@ export default function App() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (el as any).playsInline = true;
     }
-    musicRef.current = { a, b, active: "a", track: null, target: 0.85 };
+    musicRef.current = { a, b, active: "a", track: null, target: 0.85, primed: null, switchToken: 0, duckToken: 0 };
     return musicRef.current;
   };
 
@@ -454,6 +457,8 @@ export default function App() {
   const musicStop = () => {
     const m = musicRef.current;
     if (!m) return;
+    m.switchToken += 1;
+    m.duckToken += 1;
     for (const el of [m.a, m.b]) {
       try {
         el.pause();
@@ -463,6 +468,7 @@ export default function App() {
       }
     }
     m.track = null;
+    m.primed = null;
   };
 
   const endStop = () => {
@@ -573,6 +579,7 @@ export default function App() {
     m.target = trackTargetVol(track);
     const nextKey: "a" | "b" = m.active === "a" ? "b" : "a";
     const next = m[nextKey];
+    const token = ++m.switchToken;
     try {
       if (next.src !== src) next.src = src;
       next.loop = true;
@@ -580,9 +587,9 @@ export default function App() {
       next.volume = 0;
       next.currentTime = 0;
       await next.play();
-      // Make the primed track the active one for the next reveal.
-      m.active = nextKey;
-      m.track = src;
+      if (m.switchToken !== token) return;
+      // Prime silently (do NOT flip active yet; avoids “two beds” bugs).
+      m.primed = { key: nextKey, src };
     } catch {
       // If play is blocked, just keep current bed; the game still works.
     }
@@ -603,13 +610,25 @@ export default function App() {
                 ? MUSIC_SLAPPA
             : MUSIC_POST_HIJACK;
     const m = ensureMusic();
-    if (m.track === src) return;
+    if (m.track === src && m[m.active].src === src) {
+      // Ensure exclusivity and correct level.
+      m.duckToken += 1;
+      musicSetExclusiveVolume(m.target);
+      return;
+    }
     m.target = trackTargetVol(track);
 
-    const nextKey: "a" | "b" = m.active === "a" ? "b" : "a";
-    const cur = m[m.active];
+    // Cancel any in-flight duck/fade so we don't end up with two audible tracks.
+    const token = ++m.switchToken;
+    m.duckToken += 1;
+
+    const primed = m.primed?.src === src ? m.primed : null;
+    const nextKey: "a" | "b" = primed ? primed.key : m.active === "a" ? "b" : "a";
+    const curKey = m.active;
+    const cur = m[curKey];
     const next = m[nextKey];
     m.track = src;
+    m.primed = null;
 
     try {
       if (next.src !== src) next.src = src;
@@ -620,11 +639,13 @@ export default function App() {
       // If play is blocked, user gesture didn’t reach here; ignore.
       return;
     }
+    if (m.switchToken !== token) return;
 
     const dur = hardCut ? 220 : 650;
     const t0 = performance.now();
     const startCur = cur.volume;
     const raf = () => {
+      if (m.switchToken !== token) return;
       const t = Math.min(1, (performance.now() - t0) / dur);
       const ease = 1 - Math.pow(1 - t, 3);
       next.volume = m.target * ease;
@@ -632,9 +653,10 @@ export default function App() {
       if (t < 1) {
         requestAnimationFrame(raf);
       } else {
-        // Keep the old track playing at zero volume so we can switch back later
-        // without needing a new user gesture (important for timed overlays).
+        // End state: enforce strict “one audible bed” rule.
         cur.volume = 0;
+        m.a.volume = nextKey === "a" ? next.volume : 0;
+        m.b.volume = nextKey === "b" ? next.volume : 0;
         m.active = nextKey;
       }
     };
@@ -644,8 +666,17 @@ export default function App() {
   const musicDuck = (ms: number, target = 0.18) => {
     const m = musicRef.current;
     if (!m) return;
-    const a0 = m.a.volume;
-    const b0 = m.b.volume;
+    const token = ++m.duckToken;
+    // Duck whichever bed is currently audible; force the other to 0 to prevent overlap.
+    const key: "a" | "b" = m.a.volume >= m.b.volume ? "a" : "b";
+    const el = m[key];
+    const other = m[key === "a" ? "b" : "a"];
+    try {
+      other.volume = 0;
+    } catch {
+      // ignore
+    }
+    const v0 = el.volume;
     const t0 = performance.now();
     const downMs = 140;
     const upMs = 420;
@@ -654,27 +685,29 @@ export default function App() {
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
     const tick = () => {
+      if (m.duckToken !== token) return;
       const dt = performance.now() - t0;
       let k = 0;
       if (dt <= downMs) {
         k = clamp01(dt / downMs);
         // ease out
         k = 1 - Math.pow(1 - k, 3);
-        m.a.volume = lerp(a0, Math.min(a0, target), k);
-        m.b.volume = lerp(b0, Math.min(b0, target), k);
+        el.volume = lerp(v0, Math.min(v0, target), k);
       } else if (dt <= downMs + holdMs) {
-        m.a.volume = Math.min(a0, target);
-        m.b.volume = Math.min(b0, target);
+        el.volume = Math.min(v0, target);
       } else if (dt <= downMs + holdMs + upMs) {
         k = clamp01((dt - downMs - holdMs) / upMs);
         // ease in
         k = k * k;
-        m.a.volume = lerp(Math.min(a0, target), a0, k);
-        m.b.volume = lerp(Math.min(b0, target), b0, k);
+        el.volume = lerp(Math.min(v0, target), v0, k);
       } else {
-        m.a.volume = a0;
-        m.b.volume = b0;
+        el.volume = v0;
         return;
+      }
+      try {
+        other.volume = 0;
+      } catch {
+        // ignore
       }
       requestAnimationFrame(tick);
     };

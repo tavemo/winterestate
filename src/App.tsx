@@ -1113,13 +1113,13 @@ export default function App() {
                       const nextIdx = idx + 1;
                       const nextTrack = nextIdx === 3 ? "rockxmas" : nextIdx === 4 ? "acdc" : nextIdx === 5 ? "slappa" : hijacked ? "post" : "xmas";
                       void musicPrime(nextTrack);
-
+                    }}
+                    onRoomWinEnd={() => {
+                      // If the user taps through early (or timer ends), stop victory immediately and resume the primed bed.
+                      if (!state.settings.sound) return;
                       if (roomWinAudioTimerRef.current) window.clearTimeout(roomWinAudioTimerRef.current);
-                      roomWinAudioTimerRef.current = window.setTimeout(() => {
-                        // End the victory song snippet and bring the bed up for the next room.
-                        victoryStop();
-                        musicRaiseToTarget();
-                      }, hold);
+                      victoryStop();
+                      musicRaiseToTarget();
                     }}
                     onWrong={() => {
                       musicDuck(1100, 0.06);

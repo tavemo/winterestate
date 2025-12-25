@@ -8,6 +8,7 @@ type Props = {
   winHoldMs?: number;
   roomWinHoldMs?: number;
   onRoomWinStart?: (idx: number, qid: string) => void;
+  onRoomWinEnd?: (idx: number, qid: string, early: boolean) => void;
   onRoomChange?: (idx: number, qid: string) => void;
   onBoot?: () => void;
   onCopy?: () => void;
@@ -461,6 +462,7 @@ export default function TerminalReveal({
   winHoldMs,
   roomWinHoldMs,
   onRoomWinStart,
+  onRoomWinEnd,
   onRoomChange,
   onBoot,
   onCopy,
@@ -866,6 +868,8 @@ export default function TerminalReveal({
       if (step < questions.length - 1) {
         // Per-room victory splash (3–4s), then move on.
         const hold = Math.max(2200, Math.min(5200, roomWinHoldMs ?? (reduceMotion ? 600 : 3400)));
+        const curIdx = step;
+        const curId = q.id;
         roomWinDismissedRef.current = false;
         setRoomWinShow(true);
         onRoomWinStart?.(step, q.id);
@@ -873,6 +877,7 @@ export default function TerminalReveal({
         roomWinTimerRef.current = window.setTimeout(() => {
           if (roomWinDismissedRef.current) return;
           roomWinDismissedRef.current = true;
+          onRoomWinEnd?.(curIdx, curId, false);
           setRoomWinShow(false);
           setStep((s) => s + 1);
         }, reduceMotion ? 1 : hold);
@@ -1019,6 +1024,7 @@ export default function TerminalReveal({
               if (roomWinDismissedRef.current) return;
               roomWinDismissedRef.current = true;
               if (roomWinTimerRef.current) window.clearTimeout(roomWinTimerRef.current);
+              onRoomWinEnd?.(step, q.id, true);
               setRoomWinShow(false);
               setStep((s) => s + 1);
             }}

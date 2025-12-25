@@ -1729,8 +1729,9 @@ body.reduce-motion .envelopeScene--idle .bpStroke {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 170px;
+  max-height: clamp(150px, 24vh, 220px);
   object-fit: cover;
+  object-position: 50% 35%;
   filter: saturate(1.04) contrast(1.04);
 }
 
@@ -1744,6 +1745,15 @@ body.reduce-motion .envelopeScene--idle .bpStroke {
   color: rgba(232, 251, 255, 0.92);
   font-size: 18px;
   letter-spacing: 0.02em;
+}
+
+@media (min-width: 768px) {
+  .connorCard {
+    width: min(420px, 92%);
+  }
+  .connorCard__img {
+    max-height: 240px;
+  }
 }
 
 .connorCard__cap2 {
@@ -3545,13 +3555,18 @@ body[data-stage="terminal"] .terminalScene::after {
   place-items: center;
   pointer-events: auto;
   cursor: pointer;
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
 }
 
 .slappaOverlay__img {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: calc(100vh - 140px);
   object-fit: contain;
-  filter: contrast(1.05) saturate(1.05);
+  filter: contrast(1.07) saturate(1.07);
+  border-radius: 18px;
+  box-shadow: 0 30px 140px rgba(0, 0, 0, 0.72);
 }
 
 .slappaOverlay__wash {

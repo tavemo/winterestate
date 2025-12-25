@@ -795,6 +795,16 @@ export default function App() {
   }, [stage, victory]);
 
   useEffect(() => {
+    // Hardening: never let victory.mp3 “leak” across stages.
+    // Room-win victory is only meaningful inside the terminal experience.
+    if (stage !== "terminal") {
+      if (roomWinAudioTimerRef.current) window.clearTimeout(roomWinAudioTimerRef.current);
+      victoryStop();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
+  useEffect(() => {
     // Reward screen: play end.mp3 exactly once (right after the last correct answer flow).
     if (stage === "reward" && victory) {
       void endPlayOnce();

@@ -795,6 +795,13 @@ body[data-stage="final"] #debris {
   .vaultCard {
     padding: 14px;
   }
+  .bottomBar {
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  .bottomBtn__label {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+  }
 }
 
 .vaultHero {

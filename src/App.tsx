@@ -12,7 +12,7 @@ type Settings = {
   highContrast: boolean;
 };
 
-type Stage = "note" | "present" | "terminal" | "reward" | "final";
+type Stage = "note" | "present" | "terminal" | "reward";
 
 type AppState = {
   stage: Stage;
@@ -75,6 +75,8 @@ function loadState(): AppState {
   const raw = localStorage.getItem(STORAGE_KEY);
   const parsed = safeParse(raw);
   const merged = deepMerge(structuredClone(DEFAULT_STATE), parsed) as AppState;
+  // Back-compat: we removed the old final screen; land on reward instead.
+  if ((merged as unknown as { stage?: string }).stage === "final") merged.stage = "reward";
   // Always resume where they left off (iOS can reload tabs unpredictably).
   return merged;
 }
@@ -342,9 +344,7 @@ export default function App() {
       ? 2.4 + terminalDrama * 2.2
       : state.stage === "present"
         ? 1.3
-        : state.stage === "final"
-          ? 1.15
-          : 1;
+        : 1.15;
   useSnow(snowRef, { reduceMotion: state.settings.reduceMotion, intensity: snowIntensity });
   const debrisIntensity = state.stage === "terminal" ? 1.4 + terminalDrama * 2.2 : state.stage === "present" ? 0.55 : 0.25;
   useDebris(debrisRef, { reduceMotion: state.settings.reduceMotion, intensity: debrisIntensity, drama: state.stage === "terminal" ? terminalDrama : 0 });
@@ -354,10 +354,9 @@ export default function App() {
   const stage = state.stage;
   const [copied, setCopied] = useState(false);
   const showBottomBar = stage !== "note" && stage !== "present";
-  const showOptionsInBar = stage === "final" || stage === "terminal" || stage === "reward";
+  const showOptionsInBar = stage === "terminal" || stage === "reward";
   const preloadOnceRef = useRef(false);
   const copiedTimerRef = useRef<number | null>(null);
-  const rewardTimerRef = useRef<number | null>(null);
   const [hijacked, setHijacked] = useState(false);
   const pendingBedRef = useRef<null | ("xmas" | "post" | "metal" | "rockxmas" | "acdc" | "slappa")>(null);
   const musicRef = useRef<{
@@ -781,18 +780,13 @@ export default function App() {
     return () => {
       if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
       if (handoffTimerRef.current) window.clearTimeout(handoffTimerRef.current);
-      if (rewardTimerRef.current) window.clearTimeout(rewardTimerRef.current);
     };
   }, []);
 
   useEffect(() => {
     if (stage !== "reward") return;
-    // Let it breathe as a celebration, but allow skip.
-    if (rewardTimerRef.current) window.clearTimeout(rewardTimerRef.current);
-    rewardTimerRef.current = window.setTimeout(() => setState((s) => ({ ...s, stage: "final" })), state.settings.reduceMotion ? 1200 : 12_500);
-    return () => {
-      if (rewardTimerRef.current) window.clearTimeout(rewardTimerRef.current);
-    };
+    // This is now the ending screen: do not auto-advance.
+    return;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, state.settings.reduceMotion]);
 
@@ -1282,18 +1276,30 @@ export default function App() {
                       <span className="rewardTag">CODE</span>
                       <span className="rewardValue">{REVEAL_CODE}</span>
                 </div>
+                    <div className="rewardScene__actions">
+                      <button
+                        className="btn btn--primary iconBtn"
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(REVEAL_CODE);
+                            sfx.tick();
+                            setCopied(true);
+                            if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+                            copiedTimerRef.current = window.setTimeout(() => setCopied(false), 900);
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        <Copy className="icon" aria-hidden="true" />
+                        Copy
+                      </button>
+                    </div>
                   </div>
 
                   <div className="rewardScene__mystery">Now… where does it go?</div>
                   <div className="rewardScene__tiny">The blue book knows.</div>
-
-                    <button
-                    className="btn btn--primary rewardScene__btn"
-                      type="button"
-                    onClick={() => setState((s) => ({ ...s, stage: "final" }))}
-                  >
-                    Reveal the code screen
-                    </button>
 
                   <div className="rewardConfetti" aria-hidden="true">
                     {Array.from({ length: state.settings.reduceMotion ? 80 : 220 }).map((_, i) => (
@@ -1308,71 +1314,6 @@ export default function App() {
               </motion.div>
         ) : null}
 
-            {stage === "final" ? (
-          <motion.div
-                key="final"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: state.settings.reduceMotion ? 0.01 : 0.28 }}
-              >
-                <div className="vaultCard finalScene" role="group" aria-label="Final reveal">
-                  <div className="finalScene__kicker">Merry Christmas</div>
-                  <div className="finalScene__title">Your code</div>
-                  <div className="finalScene__code" aria-label="Code">
-                    {REVEAL_CODE}
-              </div>
-                  <div className="finalDominos" aria-hidden="true">
-                    <span className="finalDomino finalDomino--a" />
-                    <span className="finalDomino finalDomino--b" />
-                  </div>
-                  <div className="finalScene__actions">
-                <button
-                  className="btn btn--primary iconBtn"
-                type="button"
-                onClick={async () => {
-                  try {
-                          await navigator.clipboard.writeText(REVEAL_CODE);
-                          sfx.tick();
-                          setCopied(true);
-                          if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
-                          copiedTimerRef.current = window.setTimeout(() => setCopied(false), 900);
-                  } catch {
-                          // ignore
-                  }
-                }}
-              >
-                      <Copy className="icon" aria-hidden="true" />
-                      Copy
-              </button>
-                    <button
-                      className="btn btn--ghost"
-                  type="button"
-                  onClick={() => {
-                        setVictory(false);
-                        setState((s) => ({ ...s, stage: "note" }));
-                  }}
-                >
-                      Start over
-                </button>
-              </div>
-      <AnimatePresence>
-                    {copied ? (
-          <motion.div
-                        className="toast"
-                        initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                        transition={{ duration: state.settings.reduceMotion ? 0.01 : 0.18 }}
-                        aria-live="polite"
-                      >
-                        Copied
-            </motion.div>
-                    ) : null}
-                  </AnimatePresence>
-                  </div>
-          </motion.div>
-        ) : null}
       </AnimatePresence>
         </div>
       </main>
